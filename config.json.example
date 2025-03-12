@@ -1,0 +1,4 @@
+{
+    "plex_url": "http://SERVER_IP:PORT",
+    "plex_token": "PLEX_TOKEN_HERE"
+}
