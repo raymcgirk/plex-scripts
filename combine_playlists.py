@@ -1,8 +1,11 @@
 from plexapi.server import PlexServer
 import json
+import os
 
 # Load configuration from config.json
-with open("config.json", "r", encoding="utf-8") as f:
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
+
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     config = json.load(f)
 
 PLEX_URL = config["plex_url"]
