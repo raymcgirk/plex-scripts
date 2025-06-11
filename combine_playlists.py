@@ -16,12 +16,12 @@ PLEX_URL = config["plex_url"]
 PLEX_TOKEN = config["plex_token"]
 
 # Retry logic for unstable network/API
-def safe_get_section(plex, section_name, retries=3, delay=10):
-    for attempt in range(retries):
+def safe_get_section(plex_server, section_name, retries=3, delay=10):
+    for attempt_index in range(retries):
         try:
-            return plex.library.section(section_name)
-        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
-            print(f"Timeout/connection error on section '{section_name}', attempt {attempt + 1}/{retries}: {e}")
+            return plex_server.library.section(section_name)
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as error:
+            print(f"Timeout/connection error on section '{section_name}', attempt {attempt_index + 1}/{retries}: {error}")
             time.sleep(delay)
         except NotFound:
             print(f"Library section '{section_name}' not found.")
@@ -113,11 +113,16 @@ for decade in decades:
                     combined_playlist.removeItems(items_to_remove)
                     print(f"Removed {len(items_to_remove)} items from '{combined_playlist_name}'")
 
-            except:
+            except NotFound:
                 # If the playlist doesn't exist, create a new one
                 print(f"Creating new playlist '{combined_playlist_name}'")
                 plex.createPlaylist(title=combined_playlist_name, items=combined_items)
                 print(f"Created combined playlist '{combined_playlist_name}' with {len(combined_items)} items.")
 
-    except Exception as e:
-        print(f"Failed to combine playlists for {decade['name']}: {e}")
+            except Exception as playlist_error:
+                # Log unexpected errors clearly
+                print(f"Failed to access or create playlist '{combined_playlist_name}': {playlist_error}")
+                raise
+
+    except Exception as decade_error:
+        print(f"Failed to combine playlists for {decade['name']}: {decade_error}")
