@@ -1,6 +1,10 @@
-from plexapi.server import PlexServer
 import json
 import os
+import time
+
+import requests
+from plexapi.exceptions import NotFound
+from plexapi.server import PlexServer
 
 # Load configuration from config.json
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
@@ -11,12 +15,33 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 PLEX_URL = config["plex_url"]
 PLEX_TOKEN = config["plex_token"]
 
-# Connect to Plex server
-plex = PlexServer(PLEX_URL, PLEX_TOKEN)
+# Retry logic for unstable network/API
+def safe_get_section(plex, section_name, retries=3, delay=10):
+    for attempt in range(retries):
+        try:
+            return plex.library.section(section_name)
+        except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as e:
+            print(f"Timeout/connection error on section '{section_name}', attempt {attempt + 1}/{retries}: {e}")
+            time.sleep(delay)
+        except NotFound:
+            print(f"Library section '{section_name}' not found.")
+            break
+    raise RuntimeError(f"Failed to get section '{section_name}' after {retries} attempts")
 
-# Get all movies and TV shows
-movies_section = plex.library.section('My Movies')
-tv_shows_section = plex.library.section('My TV Shows')
+# Connect to Plex server with retry
+for attempt in range(3):
+    try:
+        plex = PlexServer(PLEX_URL, PLEX_TOKEN)
+        break
+    except requests.exceptions.RequestException as e:
+        print(f"Failed to connect to Plex server (attempt {attempt + 1}/3): {e}")
+        time.sleep(10)
+else:
+    raise RuntimeError("Could not connect to Plex server after retries.")
+
+# Safely fetch sections
+movies_section = safe_get_section(plex, 'My Movies')
+tv_shows_section = safe_get_section(plex, 'My TV Shows')
 
 # Fetch all unique years in the library
 years = set()
